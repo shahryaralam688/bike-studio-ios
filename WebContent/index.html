@@ -1,0 +1,2072 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Bike Studio — Customize</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<link type="text/css" rel="stylesheet" href="configurator.css">
+	</head>
+	<body>
+		<div id="stage"></div>
+
+		<div id="info">
+			<strong>Bike Studio</strong><br />
+			Carbon Frame Bike
+		</div>
+		<div id="status-chip">Loading model</div>
+
+		<button id="open-config" type="button" hidden>
+			<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+				<path d="M12 4l1.2 3.8L17 9l-3.8 1.2L12 14l-1.2-3.8L7 9l3.8-1.2L12 4zM18 14l.8 2.4L21 17l-2.2.6L18 20l-.6-2.4L15 17l2.4-.6L18 14zM6 15l.7 2.1L9 18l-2.3.6L6 21l-.7-2.4L3 18l2.3-.9L6 15z" fill="currentColor"/>
+			</svg>
+			Customize
+		</button>
+
+		<!-- Part inspect popup -->
+		<div id="inspect-scrim" hidden></div>
+		<article id="inspect-popup" hidden role="dialog" aria-modal="true" aria-labelledby="inspect-title">
+			<button id="inspect-close" class="icon-btn" type="button" aria-label="Close">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+					<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+				</svg>
+			</button>
+			<div class="inspect-hero" id="inspect-hero">
+				<div class="inspect-visual" id="inspect-visual">
+					<canvas id="inspect-canvas" aria-label="Part 3D preview"></canvas>
+					<div class="inspect-3d-badge">Preview</div>
+				</div>
+				<div class="inspect-hero-copy">
+					<p class="inspect-eyebrow" id="inspect-subtitle">Part</p>
+					<h2 id="inspect-title">Part</h2>
+				</div>
+			</div>
+			<div class="inspect-body">
+				<p class="inspect-summary" id="inspect-summary"></p>
+				<div class="inspect-grid">
+					<div class="inspect-field">
+						<span class="k">Material</span>
+						<span class="v" id="inspect-material"></span>
+					</div>
+					<div class="inspect-field">
+						<span class="k">Lifecycle</span>
+						<span class="v" id="inspect-lifecycle"></span>
+					</div>
+					<div class="inspect-field">
+						<span class="k">Weight</span>
+						<span class="v" id="inspect-weight"></span>
+					</div>
+					<div class="inspect-field">
+						<span class="k">Care</span>
+						<span class="v" id="inspect-care"></span>
+					</div>
+				</div>
+				<div class="section-label">Details</div>
+				<ul class="inspect-specs" id="inspect-specs"></ul>
+			</div>
+		</article>
+
+		<!-- Offscreen canvas used to bake real 3D part thumbnails for category cards -->
+		<canvas id="thumb-capture-canvas" width="512" height="512" hidden aria-hidden="true"></canvas>
+
+		<div id="scrim" hidden></div>
+
+		<section id="sheet" aria-label="Bike configurator" hidden>
+			<div class="sheet-handle" aria-hidden="true"></div>
+
+			<header class="sheet-header">
+				<button id="back-btn" class="icon-btn ghost" type="button" aria-label="Back">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+						<path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+					</svg>
+				</button>
+				<div class="titles">
+					<h1 id="sheet-title">Customize</h1>
+					<p id="sheet-subtitle">Select a part to edit</p>
+				</div>
+				<button id="close-btn" class="icon-btn" type="button" aria-label="Close">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+						<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+					</svg>
+				</button>
+			</header>
+
+			<div class="sheet-body">
+				<!-- Level 1: dynamic part catalog -->
+				<div id="panel-home" class="panel active">
+					<div id="part-catalog"></div>
+				</div>
+
+				<!-- Level 2: isolated 3D part + optional colour -->
+				<div id="panel-detail" class="panel">
+					<div class="preview-stage">
+						<canvas id="part-canvas"></canvas>
+						<div class="preview-badge" id="preview-badge">Preview</div>
+					</div>
+					<div class="detail-copy">
+						<h2 id="detail-title">Part</h2>
+						<p id="detail-desc">Choose a finish for this part.</p>
+					</div>
+					<div id="colour-section">
+						<div class="section-label">Color</div>
+						<div class="color-live-bar">
+							<div class="color-compare">
+								<span class="color-chip" id="color-before" title="Current"></span>
+								<span class="color-arrow" aria-hidden="true">→</span>
+								<span class="color-chip color-chip-after" id="color-after" title="Selected"></span>
+								<div class="color-live-copy">
+									<strong id="color-live-label">Original</strong>
+									<span id="color-live-hint">Updates live on the bike</span>
+								</div>
+							</div>
+							<span class="live-pill">Live</span>
+						</div>
+						<div id="swatch-row" class="swatch-grid"></div>
+					</div>
+				</div>
+			</div>
+
+			<footer class="sheet-footer">
+				<button id="ok-btn" class="primary-btn" type="button">OK</button>
+				<button id="ar-btn" class="secondary-btn" type="button" disabled>View in AR</button>
+				<button id="done-btn" class="secondary-btn" type="button">Done</button>
+			</footer>
+		</section>
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "./build/three.module.js",
+					"three/addons/": "./jsm/"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+			import * as THREE from 'three';
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+			import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+			import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+			import { USDZExporter } from 'three/addons/exporters/USDZExporter.js';
+			import * as WebGLTextureUtils from 'three/addons/utils/WebGLTextureUtils.js';
+			import { resolvePartDetail } from './part-details.js';
+
+			const ORIGINAL_COLOR = { id: 'original', label: 'Original', hex: '#9AA0A8' };
+
+			const RIM_COLORS = [
+				ORIGINAL_COLOR,
+				{ id: 'gold', label: 'Gold', hex: '#BC6703' },
+				{ id: 'silver', label: 'Silver', hex: '#C5C9CF' },
+				{ id: 'black', label: 'Black', hex: '#1A1A1A' },
+				{ id: 'white', label: 'White', hex: '#F0F0F0' },
+				{ id: 'red', label: 'Red', hex: '#C0392B' },
+				{ id: 'blue', label: 'Blue', hex: '#1F6FEB' },
+				{ id: 'green', label: 'Green', hex: '#2E8B57' },
+				{ id: 'orange', label: 'Orange', hex: '#E67E22' },
+			];
+
+			const BODY_COLORS = [
+				ORIGINAL_COLOR,
+				{ id: 'carbon', label: 'Carbon', hex: '#1C1E22' },
+				{ id: 'graphite', label: 'Graphite', hex: '#3A3F46' },
+				{ id: 'slate', label: 'Slate', hex: '#5B6770' },
+				{ id: 'navy', label: 'Navy', hex: '#1B2A41' },
+				{ id: 'forest', label: 'Forest', hex: '#1F3D2F' },
+				{ id: 'burgundy', label: 'Wine', hex: '#4A1C28' },
+				{ id: 'sand', label: 'Sand', hex: '#A8987D' },
+				{ id: 'white', label: 'Pearl', hex: '#E8E8EA' },
+			];
+
+			const METAL_COLORS = [
+				ORIGINAL_COLOR,
+				{ id: 'steel', label: 'Steel', hex: '#8A9099' },
+				{ id: 'chrome', label: 'Chrome', hex: '#D8DCE2' },
+				{ id: 'black', label: 'Black', hex: '#1A1A1A' },
+				{ id: 'gold', label: 'Gold', hex: '#BC6703' },
+				{ id: 'red', label: 'Red', hex: '#C0392B' },
+				{ id: 'blue', label: 'Blue', hex: '#1F6FEB' },
+				{ id: 'orange', label: 'Orange', hex: '#E67E22' },
+				{ id: 'green', label: 'Green', hex: '#2E8B57' },
+			];
+
+			const RUBBER_COLORS = [
+				ORIGINAL_COLOR,
+				{ id: 'black', label: 'Black', hex: '#1A1A1A' },
+				{ id: 'gum', label: 'Gum', hex: '#C4A574' },
+				{ id: 'grey', label: 'Grey', hex: '#5C6370' },
+				{ id: 'red', label: 'Red', hex: '#8B1E1E' },
+				{ id: 'blue', label: 'Navy', hex: '#1B2A41' },
+				{ id: 'tan', label: 'Tan', hex: '#A8987D' },
+				{ id: 'white', label: 'White', hex: '#E8E8EA' },
+			];
+
+			const ACCENT_COLORS = [
+				ORIGINAL_COLOR,
+				{ id: 'black', label: 'Black', hex: '#1A1A1A' },
+				{ id: 'grey', label: 'Grey', hex: '#5C6370' },
+				{ id: 'red', label: 'Red', hex: '#C0392B' },
+				{ id: 'blue', label: 'Blue', hex: '#1F6FEB' },
+				{ id: 'orange', label: 'Orange', hex: '#E67E22' },
+				{ id: 'green', label: 'Green', hex: '#2E8B57' },
+				{ id: 'purple', label: 'Purple', hex: '#5B3A7A' },
+				{ id: 'white', label: 'White', hex: '#E8E8EA' },
+			];
+
+			function paletteForGroup( group, id = '' ) {
+
+				if ( id === 'rimFront' || id === 'rimBack' ) return RIM_COLORS;
+				if ( id === 'body' || group === 'Frame' ) return BODY_COLORS;
+				if ( id === 'tireFront' || id === 'tireBack' || id === 'gripL' || id === 'gripR' || id === 'saddle' ) return RUBBER_COLORS;
+				if ( group === 'Cockpit' ) return ACCENT_COLORS;
+				return METAL_COLORS;
+
+			}
+
+			function defaultColorId( group, id = '' ) {
+
+				if ( id === 'rimFront' || id === 'rimBack' ) return 'gold';
+				if ( id === 'body' ) return 'carbon';
+				return 'original';
+
+			}
+
+			/**
+			 * Curated assemblies from CarbonFrameBike.glb — each row = one isolated 3D part.
+			 * nodeCandidates: first matching node name in the loaded model wins.
+			 */
+			const PART_LIBRARY = [
+				{ id: 'body', group: 'Frame', label: 'Frame Body', hint: 'Main chassis', nodeCandidates: [ 'RobertS2016_Rahmen_Hauptrahmen' ], faceOn: false, colorable: true, kind: 'body', materialNames: [ 'Carbon', 'Rahmen' ], previewMaterials: [ 'Carbon', 'Rahmen', 'Bike_Logo' ], colors: BODY_COLORS, selected: 'carbon' },
+				{ id: 'swingarmL', group: 'Frame', label: 'Left Swingarm', hint: 'Rear triangle', nodeCandidates: [ 'RobertS2016_Rahmen_Schwinge_links' ] },
+				{ id: 'swingarmR', group: 'Frame', label: 'Right Swingarm', hint: 'Rear triangle', nodeCandidates: [ 'RobertS2016_Rahmen_Schwinge_rechts' ] },
+				{ id: 'linkage', group: 'Frame', label: 'Linkage', hint: 'Shock mount', nodeCandidates: [ 'RobertS2016_Rahmen_Umlenkrollenhalter_Leertrum', 'RobertS2016_Rahmen_Umlenkrolle_Leertrum' ] },
+				{ id: 'bashguard', group: 'Frame', label: 'Bash Guard', hint: 'Underside plate', nodeCandidates: [ 'RobertS2016_Rahmen_Unterschutzplatte_Rockman_mini' ] },
+				{ id: 'rimFront', group: 'Wheels', label: 'Front Rim', hint: 'Wheel finish', nodeCandidates: [ 'Felge_584x24_32Loch', 'Felge_507x46_32Loch_Kabra' ], faceOn: true, colorable: true, kind: 'rim', materialNames: [ 'FelgeInnen' ], previewMaterials: [ 'FelgeInnen', 'FelgenStab', 'FelgenBefestigung' ], colors: RIM_COLORS, selected: 'gold', rimRole: 'front' },
+				{ id: 'rimBack', group: 'Wheels', label: 'Back Rim', hint: 'Wheel finish', nodeCandidates: [ 'Felge_507x46_32Loch_Kabra', 'Felge_584x24_32Loch' ], faceOn: true, colorable: true, kind: 'rim', materialNames: [ 'FelgeInnen' ], previewMaterials: [ 'FelgeInnen', 'FelgenStab', 'FelgenBefestigung' ], colors: RIM_COLORS, selected: 'gold', rimRole: 'back' },
+				{ id: 'tireFront', group: 'Wheels', label: 'Front Tire', hint: 'Rubber tread', nodeCandidates: [ 'Reifen_584x75', 'Reifen_507x100_Vee-Tire' ], faceOn: true, rimRole: 'frontTire' },
+				{ id: 'tireBack', group: 'Wheels', label: 'Back Tire', hint: 'Rubber tread', nodeCandidates: [ 'Reifen_507x100_Vee-Tire', 'Reifen_584x75' ], faceOn: true, rimRole: 'backTire' },
+				{ id: 'hubFront', group: 'Wheels', label: 'Front Hub', hint: 'Wheel hub', nodeCandidates: [ 'VR_Nabe_Tune_King_Boost_110mm' ] },
+				{ id: 'hubBack', group: 'Wheels', label: 'Back Hub', hint: 'Wheel hub', nodeCandidates: [ 'HR_Nabe_Tune_Kong_MK_150mm' ] },
+				{ id: 'spokesFront', group: 'Wheels', label: 'Front Spokes', hint: 'Spoke set', nodeCandidates: [ 'VR_Speichen' ] },
+				{ id: 'spokesBack', group: 'Wheels', label: 'Back Spokes', hint: 'Spoke set', nodeCandidates: [ 'HR_Speichen' ] },
+				{ id: 'rotorFront', group: 'Brakes', label: 'Front Disc', hint: 'Brake rotor', nodeCandidates: [ 'Bremsscheibe_Hope_200mm_1', 'Bremsscheibe_Hope_200mm' ], faceOn: true },
+				{ id: 'rotorBack', group: 'Brakes', label: 'Back Disc', hint: 'Brake rotor', nodeCandidates: [ 'Bremsscheibe_Hope_200mm' ], faceOn: true },
+				{ id: 'caliperFront', group: 'Brakes', label: 'Front Caliper', hint: 'Brake caliper', nodeCandidates: [ 'Magura_MT7_1', 'Magura_MT7' ] },
+				{ id: 'caliperBack', group: 'Brakes', label: 'Back Caliper', hint: 'Brake caliper', nodeCandidates: [ 'Magura_MT7' ] },
+				{ id: 'brakeLeverL', group: 'Brakes', label: 'Left Brake Lever', hint: 'Handlebar lever', nodeCandidates: [ 'Bremsgriff', 'Bremsgriff_1' ] },
+				{ id: 'brakeLeverR', group: 'Brakes', label: 'Right Brake Lever', hint: 'Handlebar lever', nodeCandidates: [ 'Bremsgriff_1', 'Bremsgriff' ] },
+				{ id: 'fork', group: 'Suspension', label: 'Front Fork', hint: 'Suspension fork', nodeCandidates: [ 'Federgabel', 'Federung' ] },
+				{ id: 'shock', group: 'Suspension', label: 'Rear Shock', hint: 'Rear damper', nodeCandidates: [ 'Daempfer_Cane-Creek_DB_200-57' ] },
+				{ id: 'handlebar', group: 'Cockpit', label: 'Handlebar', hint: 'Bar', nodeCandidates: [ 'Lenker_1', 'Lenker' ] },
+				{ id: 'stem', group: 'Cockpit', label: 'Stem', hint: 'Bar mount', nodeCandidates: [ 'Vorbau_Hope_FR_35mm' ] },
+				{ id: 'gripL', group: 'Cockpit', label: 'Left Grip', hint: 'Hand grip', nodeCandidates: [ 'Lenkergriff', 'Lenkergriff_1' ] },
+				{ id: 'gripR', group: 'Cockpit', label: 'Right Grip', hint: 'Hand grip', nodeCandidates: [ 'Lenkergriff_1', 'Lenkergriff' ] },
+				{ id: 'saddle', group: 'Cockpit', label: 'Saddle', hint: 'Seat', nodeCandidates: [ 'Sattel_736_sattel', 'Sattelstange2' ] },
+				{ id: 'seatpost', group: 'Cockpit', label: 'Seatpost', hint: 'Seat tube', nodeCandidates: [ 'Sattelstange2', 'Sattelstange' ] },
+				{ id: 'crankL', group: 'Drivetrain', label: 'Left Crank', hint: 'Crank arm', nodeCandidates: [ 'Kurbel_X01_DH_li' ] },
+				{ id: 'crankR', group: 'Drivetrain', label: 'Right Crank', hint: 'Crank arm', nodeCandidates: [ 'Kurbel_X01_DH_re' ] },
+				{ id: 'chainring', group: 'Drivetrain', label: 'Chainring', hint: 'Front ring', nodeCandidates: [ 'Kettenblatt_SRAM_directmount_26Z' ], faceOn: true },
+				{ id: 'cassette', group: 'Drivetrain', label: 'Cassette', hint: 'Rear gears', nodeCandidates: [ 'HR_Ritzelpaket_SRAM_X01_Eagle' ], faceOn: true },
+				{ id: 'derailleur', group: 'Drivetrain', label: 'Derailleur', hint: 'Rear mech', nodeCandidates: [ 'Schaltwerk' ] },
+				{ id: 'chain', group: 'Drivetrain', label: 'Chain', hint: 'Drive chain', nodeCandidates: [ 'RobertS2016_Kette' ] },
+				{ id: 'pedalL', group: 'Drivetrain', label: 'Left Pedal', hint: 'Pedal', nodeCandidates: [ 'Pedal_Funn_Bigfoot_le', 'Pedale' ] },
+				{ id: 'pedalR', group: 'Drivetrain', label: 'Right Pedal', hint: 'Pedal', nodeCandidates: [ 'Pedal_Funn_Bigfoot_re' ] },
+			];
+
+			/** Runtime part defs (resolved nodes + colour state). */
+			const PARTS = {};
+
+			const els = {
+				stage: document.getElementById( 'stage' ),
+				status: document.getElementById( 'status-chip' ),
+				openConfig: document.getElementById( 'open-config' ),
+				scrim: document.getElementById( 'scrim' ),
+				sheet: document.getElementById( 'sheet' ),
+				backBtn: document.getElementById( 'back-btn' ),
+				closeBtn: document.getElementById( 'close-btn' ),
+				doneBtn: document.getElementById( 'done-btn' ),
+				okBtn: document.getElementById( 'ok-btn' ),
+				arBtn: document.getElementById( 'ar-btn' ),
+				sheetTitle: document.getElementById( 'sheet-title' ),
+				sheetSubtitle: document.getElementById( 'sheet-subtitle' ),
+				panelHome: document.getElementById( 'panel-home' ),
+				panelDetail: document.getElementById( 'panel-detail' ),
+				partCatalog: document.getElementById( 'part-catalog' ),
+				colourSection: document.getElementById( 'colour-section' ),
+				swatchRow: document.getElementById( 'swatch-row' ),
+				colorBefore: document.getElementById( 'color-before' ),
+				colorAfter: document.getElementById( 'color-after' ),
+				colorLiveLabel: document.getElementById( 'color-live-label' ),
+				colorLiveHint: document.getElementById( 'color-live-hint' ),
+				detailTitle: document.getElementById( 'detail-title' ),
+				detailDesc: document.getElementById( 'detail-desc' ),
+				previewBadge: document.getElementById( 'preview-badge' ),
+				partCanvas: document.getElementById( 'part-canvas' ),
+				thumbCaptureCanvas: document.getElementById( 'thumb-capture-canvas' ),
+				inspectScrim: document.getElementById( 'inspect-scrim' ),
+				inspectPopup: document.getElementById( 'inspect-popup' ),
+				inspectClose: document.getElementById( 'inspect-close' ),
+				inspectTitle: document.getElementById( 'inspect-title' ),
+				inspectSubtitle: document.getElementById( 'inspect-subtitle' ),
+				inspectSummary: document.getElementById( 'inspect-summary' ),
+				inspectMaterial: document.getElementById( 'inspect-material' ),
+				inspectLifecycle: document.getElementById( 'inspect-lifecycle' ),
+				inspectWeight: document.getElementById( 'inspect-weight' ),
+				inspectCare: document.getElementById( 'inspect-care' ),
+				inspectSpecs: document.getElementById( 'inspect-specs' ),
+				inspectVisual: document.getElementById( 'inspect-visual' ),
+				inspectCanvas: document.getElementById( 'inspect-canvas' ),
+				inspectHero: document.getElementById( 'inspect-hero' ),
+			};
+
+			let camera, scene, renderer, mixer, timer, controls;
+			let bikeRoot, bikeAnimations = [];
+			let usdzReady = false;
+			let usdzBase64 = null;
+			let exportToken = 0;
+			let activePartId = null;
+			let partPreview = null;
+			let inspectPreview = null;
+			let thumbCapture = null;
+			const materialIndex = new Map(); // name -> materials[]
+			const raycaster = new THREE.Raycaster();
+			const pointerNdc = new THREE.Vector2();
+			let pointerDown = null;
+			let highlightedMesh = null;
+			let highlightedPrevEmissive = null;
+
+			init();
+
+			function setStatus( text ) {
+
+				els.status.textContent = text;
+
+			}
+
+			function init() {
+
+				timer = new THREE.Timer();
+
+				try {
+
+					renderer = new THREE.WebGLRenderer( { antialias: true, powerPreference: 'default' } );
+
+				} catch ( err ) {
+
+					console.error( err );
+					setStatus( 'WebGL unavailable' );
+					return;
+
+				}
+
+				renderer.setPixelRatio( Math.min( window.devicePixelRatio || 1, 2 ) );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.toneMapping = THREE.ACESFilmicToneMapping;
+				els.stage.appendChild( renderer.domElement );
+				renderer.setAnimationLoop( animate );
+
+				camera = new THREE.PerspectiveCamera( 38, window.innerWidth / window.innerHeight, 0.05, 100 );
+				camera.position.set( - 2.5, 1.6, 3.0 );
+
+				const pmremGenerator = new THREE.PMREMGenerator( renderer );
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( 0xe8e9ef );
+				scene.environment = pmremGenerator.fromScene( new RoomEnvironment(), 0.04 ).texture;
+
+				controls = new OrbitControls( camera, renderer.domElement );
+				controls.minDistance = 0.15;
+				controls.maxDistance = 40;
+				controls.zoomSpeed = 1.35;
+				controls.enableDamping = true;
+				controls.dampingFactor = 0.08;
+				controls.target.set( 0, 0.7, 0 );
+				controls.update();
+
+				// Do NOT create a second WebGL context here — on iOS WKWebView that often
+				// stalls/kills the main renderer and leaves the UI stuck on "Loading…".
+				wireUI();
+				updateCategoryMeta();
+
+				const gltfLoader = new GLTFLoader();
+				gltfLoader.setPath( 'models/gltf/' );
+				setStatus( 'Loading model…' );
+				gltfLoader.load( 'CarbonFrameBike.glb', ( gltf ) => {
+
+					try {
+
+						bikeRoot = gltf.scene;
+						bikeAnimations = gltf.animations || [];
+						scene.add( bikeRoot );
+						indexMaterials( bikeRoot );
+
+						buildPartsFromLibrary();
+						for ( const id of Object.keys( PARTS ) ) {
+
+							const p = PARTS[ id ];
+							if ( p.colorable && p.selected && p.selected !== 'original' ) {
+
+								applyPartColor( id, p.selected, { silent: true, commit: true } );
+
+							}
+
+						}
+						renderPartCatalog();
+						updateCategoryMeta();
+
+						if ( bikeAnimations.length > 0 ) {
+
+							mixer = new THREE.AnimationMixer( bikeRoot );
+							const action = mixer.clipAction( bikeAnimations[ 0 ] );
+							action.setLoop( THREE.LoopRepeat, Infinity );
+							action.play();
+
+						}
+
+						fitBikeInFrame();
+						setupPartPicking();
+
+						els.openConfig.hidden = false;
+						setStatus( 'Ready' );
+
+						// USDZ export is heavy — never block first paint on it.
+						refreshUSDZ( 'Ready · Customize or View in AR' );
+
+					} catch ( err ) {
+
+						console.error( err );
+						setStatus( 'Model loaded with UI error' );
+						els.openConfig.hidden = false;
+
+					}
+
+				}, ( event ) => {
+
+					if ( ! event.total ) return;
+					const pct = Math.round( ( event.loaded / event.total ) * 100 );
+					setStatus( `Loading model… ${ pct }%` );
+
+				}, ( err ) => {
+
+					console.error( err );
+					setStatus( 'Failed to load model' );
+
+				} );
+
+				window.addEventListener( 'resize', onWindowResize );
+
+			}
+
+			function ensurePartPreview() {
+
+				if ( partPreview ) return partPreview;
+				try {
+
+					// Share the main WebGL context (iOS WKWebView often fails a 2nd WebGLRenderer).
+					partPreview = new PartPreview( renderer, els.partCanvas, scene.environment );
+					return partPreview;
+
+				} catch ( err ) {
+
+					console.error( 'Part preview unavailable', err );
+					return null;
+
+				}
+
+			}
+
+			function wireUI() {
+
+				els.openConfig.addEventListener( 'click', () => openSheet( 'home' ) );
+				els.closeBtn.addEventListener( 'click', () => {
+
+					discardPending();
+					closeSheet();
+
+				} );
+				els.doneBtn.addEventListener( 'click', () => {
+
+					if ( activePartId ) openSheet( 'home' );
+					else closeSheet();
+
+				} );
+				els.okBtn.addEventListener( 'click', confirmPending );
+				els.scrim.addEventListener( 'click', () => {
+
+					discardPending();
+					closeSheet();
+
+				} );
+				els.backBtn.addEventListener( 'click', () => {
+
+					discardPending();
+					openSheet( 'home' );
+
+				} );
+				els.inspectClose.addEventListener( 'click', closeInspectPopup );
+				els.inspectScrim.addEventListener( 'click', closeInspectPopup );
+
+				els.arBtn.addEventListener( 'click', async () => {
+
+					if ( ! bikeRoot ) return;
+					// Always re-export from assembled pose right before AR open.
+					setStatus( 'Preparing complete bike for AR…' );
+					await refreshUSDZ( 'Opening AR' );
+					if ( ! usdzReady || ! usdzBase64 ) return;
+					if ( window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openUSDZ ) {
+
+						sendUSDZToNative( usdzBase64, 'CarbonFrameBike.usdz' );
+
+					}
+
+				} );
+
+			}
+
+			function setFooterMode( mode, part = null ) {
+
+				const detail = mode === 'detail';
+				const colorable = !!( part && part.colorable && part.colors );
+				els.okBtn.hidden = ! ( detail && colorable );
+				els.okBtn.textContent = 'OK';
+				els.doneBtn.hidden = detail && colorable;
+					els.doneBtn.textContent = detail ? 'Back' : 'Done';
+				els.arBtn.hidden = detail;
+
+			}
+
+			function openSheet( level, partId = null ) {
+
+				els.scrim.hidden = false;
+				els.sheet.hidden = false;
+				requestAnimationFrame( () => {
+
+					els.scrim.classList.add( 'open' );
+					els.sheet.classList.add( 'open' );
+					els.openConfig.classList.add( 'hidden' );
+
+				} );
+
+				if ( level === 'home' ) {
+
+					activePartId = null;
+					els.panelHome.classList.add( 'active' );
+					els.panelDetail.classList.remove( 'active' );
+					els.backBtn.classList.remove( 'visible' );
+					els.backBtn.classList.add( 'ghost' );
+					els.sheetTitle.textContent = 'Customize';
+					els.sheetSubtitle.textContent = 'Select a part to edit';
+					partPreview?.stop();
+					setFooterMode( 'home' );
+					fitBikeInFrame( { keepOrbitAngle: true } );
+					refreshCategoryThumbs();
+
+				} else {
+
+					activePartId = partId;
+					const part = PARTS[ partId ];
+					if ( ! part ) return;
+					part.pending = part.selected;
+					els.panelHome.classList.remove( 'active' );
+					els.panelDetail.classList.add( 'active' );
+					els.backBtn.classList.add( 'visible' );
+					els.backBtn.classList.remove( 'ghost' );
+					els.sheetTitle.textContent = part.title;
+					els.sheetSubtitle.textContent = 'Pick a color to preview';
+					els.detailTitle.textContent = part.title;
+					els.detailDesc.textContent = part.desc;
+					els.previewBadge.textContent = 'Preview';
+					setFooterMode( 'detail', part );
+					els.colourSection.hidden = false;
+					renderSwatches( partId );
+					updateLiveColorBar( partId );
+					focusBikeOnPart( part );
+
+					setTimeout( () => {
+
+						showIsolatedPartPreview( partId );
+
+					}, 80 );
+
+				}
+
+			}
+
+			function showIsolatedPartPreview( partId ) {
+
+				const part = PARTS[ partId ];
+				const preview = ensurePartPreview();
+				if ( ! preview || ! bikeRoot || ! part ) {
+
+					els.previewBadge.textContent = 'Preview unavailable';
+					return;
+
+				}
+
+				const node = part.previewNodeNames?.[ 0 ] ? findBikeNode( part.previewNodeNames[ 0 ] ) : null;
+				if ( ! node ) {
+
+					els.previewBadge.textContent = 'Part not in model';
+					return;
+
+				}
+
+				// Isolate ONE assembly — never parent "Rahmen" (that is the whole bike).
+				// Empty material filter → keep real GLB textures/maps.
+				if ( part.faceOn || part.kind === 'rim' ) {
+
+					preview.show( bikeRoot, {
+						nodeNames: part.previewNodeNames,
+						materialNames: [],
+						sideBySide: true,
+					} );
+
+				} else {
+
+					preview.showAssembly( node );
+
+				}
+
+				preview.syncColors( part.materialNames, getPendingHex( partId ) );
+				preview.render( 0 );
+				els.previewBadge.textContent = part.badge || `3D · ${ part.title }`;
+
+			}
+
+			function discardPending() {
+
+				if ( ! activePartId ) return;
+				const part = PARTS[ activePartId ];
+				if ( ! part ) return;
+				part.pending = part.selected;
+				// Revert live bike tint to last saved colour.
+				applyPartColor( activePartId, part.selected, { silent: true, commit: false } );
+
+			}
+
+			function confirmPending() {
+
+				if ( ! activePartId ) return;
+				const part = PARTS[ activePartId ];
+				if ( ! part ) {
+
+					openSheet( 'home' );
+					return;
+
+				}
+				applyPartColor( activePartId, part.pending, { silent: false, commit: true } );
+				setStatus( `${ part.title }: ${ getColorLabel( activePartId, part.pending ) } saved` );
+				openSheet( 'home' );
+
+			}
+
+			function updateLiveColorBar( partId ) {
+
+				const part = PARTS[ partId ];
+				if ( ! part || ! els.colorBefore ) return;
+				const before = part.colors.find( ( c ) => c.id === part.selected ) || ORIGINAL_COLOR;
+				const after = part.colors.find( ( c ) => c.id === part.pending ) || before;
+				els.colorBefore.style.background = before.hex;
+				els.colorAfter.style.background = after.hex;
+				els.colorLiveLabel.textContent = after.label;
+				const dirty = part.pending !== part.selected;
+				els.colorLiveHint.textContent = dirty
+					? 'Previewing. Tap OK to save'
+					: 'Updates live on the bike';
+				els.colorAfter.classList.toggle( 'pulse', dirty );
+
+			}
+
+			function ensureThumbCapture() {
+
+				if ( thumbCapture ) return thumbCapture;
+				// Give the offscreen canvas a real layout size for RT reads.
+				const c = els.thumbCaptureCanvas;
+				c.hidden = false;
+				c.style.cssText = 'position:fixed;left:-9999px;top:0;width:256px;height:256px;opacity:0;pointer-events:none;';
+				thumbCapture = new PartPreview( renderer, c, scene?.environment || null );
+				return thumbCapture;
+
+			}
+
+			function findBikeNode( nodeName ) {
+
+				if ( ! bikeRoot || ! nodeName ) return null;
+				let found = null;
+				bikeRoot.traverse( ( obj ) => {
+
+					if ( found || ! obj.name ) return;
+					if ( obj.name === nodeName || obj.name.indexOf( nodeName ) === 0 ) found = obj;
+
+				} );
+				return found;
+
+			}
+
+			function firstExistingNode( candidates = [] ) {
+
+				for ( const name of candidates ) {
+
+					const n = findBikeNode( name );
+					if ( n ) return n;
+
+				}
+				return null;
+
+			}
+
+			function axisSortNodes( nodes ) {
+
+				bikeRoot.updateWorldMatrix( true, true );
+				const scored = nodes.map( ( n ) => {
+
+					const c = new THREE.Box3().setFromObject( n ).getCenter( new THREE.Vector3() );
+					return { n, c };
+
+				} );
+				const xSpan = Math.max( ...scored.map( ( s ) => s.c.x ) ) - Math.min( ...scored.map( ( s ) => s.c.x ) );
+				const zSpan = Math.max( ...scored.map( ( s ) => s.c.z ) ) - Math.min( ...scored.map( ( s ) => s.c.z ) );
+				const axis = zSpan >= xSpan ? 'z' : 'x';
+				scored.sort( ( a, b ) => a.c[ axis ] - b.c[ axis ] );
+				return { rear: scored[ 0 ].n, front: scored[ scored.length - 1 ].n, axis };
+
+			}
+
+			function buildPartsFromLibrary() {
+
+				for ( const key of Object.keys( PARTS ) ) delete PARTS[ key ];
+
+				const felges = [];
+				const tires = [];
+				const rotors = [];
+				const calipers = [];
+				bikeRoot.traverse( ( o ) => {
+
+					if ( ! o.name ) return;
+					if ( o.name.indexOf( 'Felge_' ) === 0 ) felges.push( o );
+					if ( o.name.indexOf( 'Reifen_' ) === 0 ) tires.push( o );
+					if ( o.name === 'Bremsscheibe_Hope_200mm' || o.name === 'Bremsscheibe_Hope_200mm_1' ) rotors.push( o );
+					if ( o.name === 'Magura_MT7' || o.name === 'Magura_MT7_1' ) calipers.push( o );
+
+				} );
+				const rimPair = felges.length >= 2 ? axisSortNodes( felges ) : null;
+				const tirePair = tires.length >= 2 ? axisSortNodes( tires ) : null;
+				const rotorPair = rotors.length >= 2 ? axisSortNodes( rotors ) : null;
+				const caliperPair = calipers.length >= 2 ? axisSortNodes( calipers ) : null;
+
+				for ( const entry of PART_LIBRARY ) {
+
+					let node = null;
+					if ( entry.rimRole === 'front' && rimPair ) node = rimPair.front;
+					else if ( entry.rimRole === 'back' && rimPair ) node = rimPair.rear;
+					else if ( entry.rimRole === 'frontTire' && tirePair ) node = tirePair.front;
+					else if ( entry.rimRole === 'backTire' && tirePair ) node = tirePair.rear;
+					else if ( entry.id === 'rotorFront' && rotorPair ) node = rotorPair.front;
+					else if ( entry.id === 'rotorBack' && rotorPair ) node = rotorPair.rear;
+					else if ( entry.id === 'caliperFront' && caliperPair ) node = caliperPair.front;
+					else if ( entry.id === 'caliperBack' && caliperPair ) node = caliperPair.rear;
+					else node = firstExistingNode( entry.nodeCandidates );
+
+					if ( ! node ) continue;
+
+					const colors = entry.colors || paletteForGroup( entry.group, entry.id );
+					const selected = entry.selected || defaultColorId( entry.group, entry.id );
+					PARTS[ entry.id ] = {
+						id: entry.id,
+						title: entry.label,
+						subtitle: entry.hint || entry.group,
+						desc: `Choose a finish for the ${ entry.label.toLowerCase() }.`,
+						badge: 'Preview',
+						group: entry.group,
+						kind: entry.kind || 'part',
+						faceOn: !! entry.faceOn,
+						colorable: true,
+						materialNames: entry.materialNames || [],
+						previewMaterials: entry.previewMaterials || [],
+						previewNodeNames: [ node.name ],
+						colors,
+						selected,
+						pending: selected,
+					};
+
+					// Snapshot factory textures so "Original" can restore later.
+					captureBaseColorsOnNode( node );
+
+				}
+
+			}
+
+			function captureBaseColorsOnNode( scope ) {
+
+				if ( ! scope ) return;
+				scope.traverse( ( obj ) => {
+
+					if ( ! obj.isMesh ) return;
+					uniquifyMeshMaterials( obj );
+					const mats = Array.isArray( obj.material ) ? obj.material : [ obj.material ];
+					for ( const mat of mats ) {
+
+						if ( ! mat || mat.userData._baseColor ) continue;
+						mat.userData._baseColor = mat.color.clone();
+						if ( 'metalness' in mat ) mat.userData._baseMetalness = mat.metalness;
+						if ( 'roughness' in mat ) mat.userData._baseRoughness = mat.roughness;
+
+					}
+
+				} );
+
+			}
+
+			function renderPartCatalog() {
+
+				if ( ! els.partCatalog ) return;
+				els.partCatalog.innerHTML = '';
+				const groups = {};
+				for ( const id of Object.keys( PARTS ) ) {
+
+					const p = PARTS[ id ];
+					if ( ! groups[ p.group ] ) groups[ p.group ] = [];
+					groups[ p.group ].push( p );
+
+				}
+				const order = [ 'Frame', 'Wheels', 'Brakes', 'Suspension', 'Cockpit', 'Drivetrain' ];
+				const keys = [ ...order.filter( ( g ) => groups[ g ] ), ...Object.keys( groups ).filter( ( g ) => ! order.includes( g ) ) ];
+
+				for ( const group of keys ) {
+
+					const section = document.createElement( 'section' );
+					section.className = 'part-section';
+					section.innerHTML = `<div class="section-label">${ group }</div>`;
+					const list = document.createElement( 'div' );
+					list.className = 'part-list';
+
+					for ( const part of groups[ group ] ) {
+
+						const btn = document.createElement( 'button' );
+						btn.type = 'button';
+						btn.className = 'part-row';
+						btn.dataset.part = part.id;
+						btn.innerHTML =
+							`<div class="part-row-thumb"><img data-thumb="${ part.id }" alt="${ part.title }" /></div>` +
+							`<div class="part-row-copy">` +
+							`<span class="eyebrow">${ part.group }</span>` +
+							`<h3 class="title">${ part.title }</h3>` +
+							`<div class="meta">` +
+							`<span class="dot" data-dot="${ part.id }"></span><span data-label="${ part.id }">Original</span>` +
+							`</div></div><span class="part-chevron" aria-hidden="true">›</span>`;
+						btn.addEventListener( 'click', () => openSheet( 'detail', part.id ) );
+						list.appendChild( btn );
+
+					}
+
+					section.appendChild( list );
+					els.partCatalog.appendChild( section );
+
+				}
+
+			}
+
+			function capturePartThumb( partId, imgEl ) {
+
+				const part = PARTS[ partId ];
+				if ( ! part || ! imgEl ) return;
+				const node = part.previewNodeNames?.[ 0 ] ? findBikeNode( part.previewNodeNames[ 0 ] ) : null;
+				if ( ! node ) return;
+
+				const cap = ensureThumbCapture();
+				cap.resize();
+
+				if ( part.faceOn || part.kind === 'rim' ) {
+
+					cap.show( bikeRoot, {
+						nodeNames: part.previewNodeNames,
+						materialNames: [],
+						sideBySide: true,
+					} );
+
+				} else {
+
+					cap.showAssembly( node );
+
+				}
+
+				// Keep real GLB textures — do not flat-tint thumbs.
+				if ( cap.root.children[ 0 ] ) {
+
+					cap.root.children[ 0 ].rotation.y = part.faceOn ? 0.32 : 0.5;
+					cap.root.children[ 0 ].rotation.x = part.faceOn ? 0.14 : 0.18;
+
+				}
+				cap.render( 0 );
+				imgEl.src = cap.canvas.toDataURL( 'image/png' );
+				cap.stop();
+
+			}
+
+			async function refreshCategoryThumbs() {
+
+				if ( ! bikeRoot || ! els.partCatalog ) return;
+				try {
+
+					const imgs = [ ...els.partCatalog.querySelectorAll( 'img[data-thumb]' ) ];
+					for ( let i = 0; i < imgs.length; i ++ ) {
+
+						capturePartThumb( imgs[ i ].dataset.thumb, imgs[ i ] );
+						if ( i % 3 === 2 ) await new Promise( ( r ) => requestAnimationFrame( r ) );
+
+					}
+
+				} catch ( err ) {
+
+					console.error( 'Category thumb capture failed', err );
+
+				}
+
+			}
+
+			/** Zoom main 3D view onto the isolated part. */
+			function focusBikeOnPart( part ) {
+
+				if ( ! bikeRoot || ! camera || ! controls || ! part?.previewNodeNames?.[ 0 ] ) return;
+				const targetObj = findBikeNode( part.previewNodeNames[ 0 ] );
+				if ( ! targetObj ) {
+
+					fitBikeInFrame( { keepOrbitAngle: true } );
+					return;
+
+				}
+
+				targetObj.updateWorldMatrix( true, true );
+				const box = new THREE.Box3().setFromObject( targetObj );
+				if ( box.isEmpty() ) return;
+				const center = box.getCenter( new THREE.Vector3() );
+				const size = box.getSize( new THREE.Vector3() );
+				const maxDim = Math.max( size.x, size.y, size.z, 0.2 );
+				const dist = maxDim * ( part.faceOn || part.kind === 'rim' ? 2.4 : 2.6 );
+				const dir = new THREE.Vector3( - 0.55, 0.35, 0.78 ).normalize();
+				controls.target.copy( center );
+				camera.position.copy( center ).addScaledVector( dir, dist );
+				camera.near = 0.02;
+				camera.far = dist * 40;
+				camera.updateProjectionMatrix();
+				controls.minDistance = Math.max( dist * 0.25, 0.1 );
+				controls.maxDistance = dist * 4;
+				controls.update();
+
+			}
+
+			function closeSheet() {
+
+				els.scrim.classList.remove( 'open' );
+				els.sheet.classList.remove( 'open' );
+				els.openConfig.classList.remove( 'hidden' );
+				partPreview?.stop();
+				fitBikeInFrame( { keepOrbitAngle: true } );
+				setTimeout( () => {
+
+					if ( ! els.sheet.classList.contains( 'open' ) ) {
+
+						els.scrim.hidden = true;
+						els.sheet.hidden = true;
+						// Free the secondary WebGL context on iOS when sheet closes.
+						if ( partPreview ) {
+
+							partPreview.dispose();
+							partPreview = null;
+
+						}
+
+					}
+
+				}, 340 );
+
+			}
+
+			function renderSwatches( partId ) {
+
+				const part = PARTS[ partId ];
+				els.swatchRow.innerHTML = '';
+
+				for ( const color of part.colors ) {
+
+					const cell = document.createElement( 'button' );
+					cell.type = 'button';
+					cell.className = 'swatch-cell' + ( color.id === part.pending ? ' active' : '' );
+					if ( color.id === 'original' ) cell.classList.add( 'swatch-original' );
+					cell.setAttribute( 'aria-label', color.label );
+					cell.innerHTML =
+						`<span class="swatch" style="--swatch:${ color.hex }"></span>` +
+						`<span class="swatch-name">${ color.label }</span>`;
+					cell.addEventListener( 'click', () => {
+
+						part.pending = color.id;
+						renderSwatches( partId );
+						updateLiveColorBar( partId );
+						// Live on main bike + isolated 3D preview (not saved until OK).
+						applyPartColor( partId, color.id, { silent: true, commit: false } );
+						if ( partPreview ) {
+
+							partPreview.syncColors( part.materialNames, color.id === 'original' ? null : color.hex );
+							if ( color.id === 'original' ) showIsolatedPartPreview( partId );
+							else partPreview.render( 0 );
+
+						}
+						setStatus( `${ part.title }: ${ color.label }` );
+
+					} );
+					els.swatchRow.appendChild( cell );
+
+				}
+
+			}
+
+			function indexMaterials( root ) {
+
+				materialIndex.clear();
+				root.traverse( ( obj ) => {
+
+					if ( ! obj.isMesh ) return;
+					const mats = Array.isArray( obj.material ) ? obj.material : [ obj.material ];
+					for ( const mat of mats ) {
+
+						if ( ! mat?.name ) continue;
+						if ( ! materialIndex.has( mat.name ) ) materialIndex.set( mat.name, [] );
+						const list = materialIndex.get( mat.name );
+						if ( ! list.includes( mat ) ) list.push( mat );
+
+					}
+
+				} );
+
+			}
+
+			function materialsForNames( names ) {
+
+				const out = [];
+				for ( const name of names ) {
+
+					const list = materialIndex.get( name ) || [];
+					for ( const mat of list ) out.push( mat );
+
+				}
+				return out;
+
+			}
+
+			function getSelectedHex( partId ) {
+
+				const part = PARTS[ partId ];
+				if ( ! part?.colors ) return '#888';
+				const color = part.colors.find( ( c ) => c.id === part.selected );
+				if ( ! color || color.id === 'original' ) return null;
+				return color.hex;
+
+			}
+
+			function getPendingHex( partId ) {
+
+				const part = PARTS[ partId ];
+				if ( ! part?.colors ) return getSelectedHex( partId );
+				const color = part.colors.find( ( c ) => c.id === part.pending );
+				if ( ! color || color.id === 'original' ) return null;
+				return color.hex;
+
+			}
+
+			function getColorLabel( partId, colorId ) {
+
+				const part = PARTS[ partId ];
+				if ( ! part?.colors ) return colorId;
+				const color = part.colors.find( ( c ) => c.id === colorId );
+				return color ? color.label : colorId;
+
+			}
+
+			function uniquifyMeshMaterials( mesh ) {
+
+				if ( Array.isArray( mesh.material ) ) {
+
+					mesh.material = mesh.material.map( ( m ) => {
+
+						if ( ! m || m.userData?._partUnique ) return m;
+						const c = m.clone();
+						c.name = m.name;
+						c.userData._partUnique = true;
+						return c;
+
+					} );
+
+				} else if ( mesh.material && ! mesh.material.userData?._partUnique ) {
+
+					const name = mesh.material.name;
+					mesh.material = mesh.material.clone();
+					mesh.material.name = name;
+					mesh.material.userData._partUnique = true;
+
+				}
+
+			}
+
+			function tintMaterials( mats, part, colorId, threeColor ) {
+
+				const isRim = part.kind === 'rim';
+				const isBody = part.kind === 'body' || part.group === 'Frame';
+				for ( const mat of mats ) {
+
+					if ( ! mat ) continue;
+					if ( colorId === 'original' ) {
+
+						if ( mat.userData._baseColor ) mat.color.copy( mat.userData._baseColor );
+						if ( 'metalness' in mat && mat.userData._baseMetalness != null ) mat.metalness = mat.userData._baseMetalness;
+						if ( 'roughness' in mat && mat.userData._baseRoughness != null ) mat.roughness = mat.userData._baseRoughness;
+						mat.needsUpdate = true;
+						continue;
+
+					}
+
+					mat.color.copy( threeColor );
+					if ( 'metalness' in mat ) {
+
+						if ( isRim ) mat.metalness = ( colorId === 'black' || colorId === 'white' ) ? 0.55 : 0.85;
+						else if ( isBody ) mat.metalness = colorId === 'carbon' ? 0.15 : 0.35;
+						else mat.metalness = Math.min( Math.max( mat.metalness, 0.25 ), 0.85 );
+
+					}
+					if ( 'roughness' in mat ) {
+
+						if ( isRim ) mat.roughness = colorId === 'black' ? 0.35 : 0.18;
+						else if ( isBody ) mat.roughness = colorId === 'carbon' ? 0.55 : 0.4;
+						else mat.roughness = Math.max( mat.roughness, 0.22 );
+
+					}
+					mat.needsUpdate = true;
+
+				}
+
+			}
+
+			function applyPartColor( partId, colorId, { silent = false, commit = true } = {} ) {
+
+				const part = PARTS[ partId ];
+				if ( ! part?.colorable || ! part.colors ) return;
+				const color = part.colors.find( ( c ) => c.id === colorId );
+				if ( ! color ) return;
+
+				if ( commit ) part.selected = colorId;
+				const threeColor = colorId === 'original' ? null : new THREE.Color( color.hex );
+				const allow = new Set( part.materialNames || [] );
+
+				// Always scope to this part's node so colours stay independent.
+				if ( part.previewNodeNames?.length ) {
+
+					for ( const nodeName of part.previewNodeNames ) {
+
+						const scope = findBikeNode( nodeName );
+						if ( ! scope ) continue;
+						scope.traverse( ( obj ) => {
+
+							if ( ! obj.isMesh ) return;
+							uniquifyMeshMaterials( obj );
+							const mats = Array.isArray( obj.material ) ? obj.material : [ obj.material ];
+							const hit = allow.size
+								? mats.filter( ( m ) => m && allow.has( m.name ) )
+								: mats.filter( Boolean );
+							if ( hit.length ) tintMaterials( hit, part, colorId, threeColor );
+
+						} );
+
+					}
+
+				} else if ( part.materialNames?.length ) {
+
+					tintMaterials( materialsForNames( part.materialNames ), part, colorId, threeColor );
+
+				}
+
+				updateCategoryMeta();
+				if ( ! silent && commit ) refreshUSDZ( `${ part.title }: ${ color.label }` );
+
+			}
+
+			function updateCategoryMeta() {
+
+				if ( ! els.partCatalog ) return;
+				for ( const id of Object.keys( PARTS ) ) {
+
+					const part = PARTS[ id ];
+					if ( ! part.colorable || ! part.colors ) continue;
+					const color = part.colors.find( ( c ) => c.id === part.selected );
+					if ( ! color ) continue;
+					const dot = els.partCatalog.querySelector( `[data-dot="${ id }"]` );
+					const label = els.partCatalog.querySelector( `[data-label="${ id }"]` );
+					if ( dot ) dot.style.background = color.hex;
+					if ( label ) label.textContent = color.label;
+
+				}
+
+			}
+
+			/**
+			 * Snap bike to fully assembled bind pose for USDZ/AR.
+			 * In-app explode animation must NEVER bake into AR.
+			 */
+			function freezeBikeAssembledForExport() {
+
+				if ( ! mixer || ! bikeAnimations.length ) return null;
+				const clip = bikeAnimations[ 0 ];
+				const action = mixer.existingAction( clip ) || mixer.clipAction( clip );
+				const state = {
+					action,
+					time: action.time,
+					paused: action.paused,
+					enabled: action.enabled,
+					weight: action.getEffectiveWeight(),
+				};
+				action.enabled = true;
+				action.setEffectiveWeight( 1 );
+				action.paused = true;
+				action.time = 0;
+				mixer.update( 0 );
+				bikeRoot.updateMatrixWorld( true );
+				return state;
+
+			}
+
+			function restoreBikeAfterExport( state ) {
+
+				if ( ! state || ! mixer ) return;
+				state.action.time = state.time;
+				state.action.paused = state.paused;
+				state.action.enabled = state.enabled;
+				state.action.setEffectiveWeight( state.weight );
+				mixer.update( 0 );
+				bikeRoot.updateMatrixWorld( true );
+
+			}
+
+			async function refreshUSDZ( readyMessage ) {
+
+				if ( ! bikeRoot ) return;
+				const token = ++ exportToken;
+				usdzReady = false;
+				els.arBtn.disabled = true;
+				setStatus( 'Updating USDZ…' );
+
+				const pose = freezeBikeAssembledForExport();
+
+				try {
+
+					const exporter = new USDZExporter();
+					exporter.setTextureUtils( WebGLTextureUtils );
+					// No animations — AR always shows one complete assembled bike.
+					const arraybuffer = await exporter.parseAsync( bikeRoot, {
+						onlyVisible: true,
+						quickLookCompatible: true,
+					} );
+					if ( token !== exportToken ) return;
+
+					usdzBase64 = arrayBufferToBase64( arraybuffer );
+					usdzReady = true;
+					els.arBtn.disabled = false;
+					setStatus( readyMessage || 'Ready' );
+
+				} catch ( err ) {
+
+					console.error( err );
+					if ( token === exportToken ) setStatus( 'USDZ export failed' );
+
+				} finally {
+
+					restoreBikeAfterExport( pose );
+
+				}
+
+			}
+
+			function arrayBufferToBase64( buffer ) {
+
+				const bytes = new Uint8Array( buffer );
+				let binary = '';
+				const chunk = 0x8000;
+				for ( let i = 0; i < bytes.length; i += chunk ) {
+
+					binary += String.fromCharCode.apply( null, bytes.subarray( i, i + chunk ) );
+
+				}
+				return btoa( binary );
+
+			}
+
+			function sendUSDZToNative( base64, filename ) {
+
+				const handler = window.webkit.messageHandlers.openUSDZ;
+				const chunkSize = 256 * 1024;
+				const total = Math.ceil( base64.length / chunkSize );
+				const transferId = String( Date.now() );
+				handler.postMessage( { type: 'begin', transferId, filename, total } );
+				for ( let i = 0; i < total; i ++ ) {
+
+					handler.postMessage( {
+						type: 'chunk',
+						transferId,
+						index: i,
+						data: base64.slice( i * chunkSize, ( i + 1 ) * chunkSize )
+					} );
+
+				}
+				handler.postMessage( { type: 'end', transferId } );
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				if ( bikeRoot ) fitBikeInFrame( { keepOrbitAngle: true } );
+				if ( activePartId ) partPreview?.resize();
+
+			}
+
+			function setupPartPicking() {
+
+				const el = renderer.domElement;
+				el.addEventListener( 'pointerdown', ( event ) => {
+
+					if ( els.sheet.classList.contains( 'open' ) ) return;
+					pointerDown = { x: event.clientX, y: event.clientY, id: event.pointerId };
+
+				} );
+
+				el.addEventListener( 'pointerup', ( event ) => {
+
+					if ( ! pointerDown || pointerDown.id !== event.pointerId ) return;
+					const dx = event.clientX - pointerDown.x;
+					const dy = event.clientY - pointerDown.y;
+					pointerDown = null;
+					// Ignore drags used for orbit / pinch zoom.
+					if ( Math.hypot( dx, dy ) > 10 ) return;
+					if ( els.sheet.classList.contains( 'open' ) ) return;
+					if ( els.inspectPopup.classList.contains( 'open' ) ) return;
+					pickPartAt( event.clientX, event.clientY );
+
+				} );
+
+				el.addEventListener( 'pointercancel', () => {
+
+					pointerDown = null;
+
+				} );
+
+			}
+
+			function pickPartAt( clientX, clientY ) {
+
+				if ( ! bikeRoot ) return;
+				const rect = renderer.domElement.getBoundingClientRect();
+				pointerNdc.x = ( ( clientX - rect.left ) / rect.width ) * 2 - 1;
+				pointerNdc.y = - ( ( clientY - rect.top ) / rect.height ) * 2 + 1;
+				raycaster.setFromCamera( pointerNdc, camera );
+				const hits = raycaster.intersectObject( bikeRoot, true );
+				if ( ! hits.length ) return;
+
+				const mesh = hits[ 0 ].object;
+				const mat = Array.isArray( mesh.material ) ? mesh.material[ 0 ] : mesh.material;
+				const materialName = mat?.name || '';
+				const nodeNames = [];
+				let p = mesh;
+				while ( p ) {
+
+					if ( p.name ) nodeNames.push( p.name );
+					p = p.parent;
+
+				}
+
+				const detail = resolvePartDetail( materialName, nodeNames );
+				flashMesh( mesh );
+				openInspectPopup( detail, mesh );
+				setStatus( detail.title );
+
+			}
+
+			function findInspectRoot( mesh, detailId ) {
+
+				const keywords = {
+					frame: [ 'rahmen', 'carbon', 'bike_logo' ],
+					rim: [ 'felge' ],
+					tire: [ 'reifen', 'schlauch' ],
+					saddle: [ 'sattel' ],
+					drivetrain: [ 'getriebe', 'ritzel', 'chain', 'pedale', 'kurbel' ],
+					brakes: [ 'bremse', 'bremsscheibe', 'bremshebel', 'bremskloetze' ],
+					suspension: [ 'feder', 'gabel', 'federung' ],
+					handlebar: [ 'lenker', 'griff' ],
+					pedal: [ 'pedale' ],
+					hardware: [ 'schrauben' ],
+				};
+				const keys = keywords[ detailId ] || [];
+				let best = mesh;
+				let p = mesh;
+				while ( p && p !== bikeRoot ) {
+
+					const n = ( p.name || '' ).toLowerCase();
+					if ( keys.some( ( k ) => n.includes( k ) ) ) best = p;
+					p = p.parent;
+
+				}
+				return best;
+
+			}
+
+			function ensureInspectPreview() {
+
+				if ( inspectPreview ) return inspectPreview;
+				try {
+
+					inspectPreview = new PartPreview( renderer, els.inspectCanvas, scene?.environment || null );
+					return inspectPreview;
+
+				} catch ( err ) {
+
+					console.error( 'Inspect 3D preview failed', err );
+					return null;
+
+				}
+
+			}
+
+			function flashMesh( mesh ) {
+
+				clearHighlight();
+				const mat = Array.isArray( mesh.material ) ? mesh.material[ 0 ] : mesh.material;
+				if ( ! mat || ! ( 'emissive' in mat ) ) return;
+				highlightedMesh = mesh;
+				highlightedPrevEmissive = mat.emissive ? mat.emissive.clone() : new THREE.Color( 0x000000 );
+				mat.emissive = new THREE.Color( 0x2f6fed );
+				mat.emissiveIntensity = 0.35;
+				mat.needsUpdate = true;
+				setTimeout( clearHighlight, 900 );
+
+			}
+
+			function clearHighlight() {
+
+				if ( ! highlightedMesh ) return;
+				const mat = Array.isArray( highlightedMesh.material )
+					? highlightedMesh.material[ 0 ]
+					: highlightedMesh.material;
+				if ( mat && highlightedPrevEmissive && 'emissive' in mat ) {
+
+					mat.emissive.copy( highlightedPrevEmissive );
+					mat.emissiveIntensity = 0;
+					mat.needsUpdate = true;
+
+				}
+				highlightedMesh = null;
+				highlightedPrevEmissive = null;
+
+			}
+
+			function openInspectPopup( detail, mesh ) {
+
+				els.inspectTitle.textContent = detail.title;
+				els.inspectSubtitle.textContent = detail.subtitle;
+				els.inspectSummary.textContent = detail.summary;
+				els.inspectMaterial.textContent = detail.material;
+				els.inspectLifecycle.textContent = detail.lifecycle;
+				els.inspectWeight.textContent = detail.weight;
+				els.inspectCare.textContent = detail.care;
+				els.inspectSpecs.innerHTML = '';
+				for ( const line of detail.specs || [] ) {
+
+					const li = document.createElement( 'li' );
+					li.textContent = line;
+					els.inspectSpecs.appendChild( li );
+
+				}
+				els.inspectHero.style.setProperty( '--part-accent', detail.accent || '#333' );
+
+				els.inspectScrim.hidden = false;
+				els.inspectPopup.hidden = false;
+				requestAnimationFrame( () => {
+
+					els.inspectScrim.classList.add( 'open' );
+					els.inspectPopup.classList.add( 'open' );
+
+					// Wait for sheet layout so canvas has full width, then show complete 3D part.
+					setTimeout( () => {
+
+						const preview = ensureInspectPreview();
+						if ( ! preview || ! mesh ) return;
+						const assembly = findInspectRoot( mesh, detail.id );
+						preview.resize();
+						preview.showAssembly( assembly );
+						preview.render( 0 );
+
+					}, 80 );
+
+				} );
+
+			}
+
+			function closeInspectPopup() {
+
+				els.inspectScrim.classList.remove( 'open' );
+				els.inspectPopup.classList.remove( 'open' );
+				inspectPreview?.stop();
+				clearHighlight();
+				setTimeout( () => {
+
+					if ( ! els.inspectPopup.classList.contains( 'open' ) ) {
+
+						els.inspectScrim.hidden = true;
+						els.inspectPopup.hidden = true;
+						if ( inspectPreview ) {
+
+							inspectPreview.dispose();
+							inspectPreview = null;
+
+						}
+
+					}
+
+				}, 300 );
+
+			}
+
+			/**
+			 * Frame the full bike inside the visible viewport, including exploded-animation extremes
+			 * and space reserved for top/bottom mobile UI chrome.
+			 */
+			function fitBikeInFrame( { keepOrbitAngle = false } = {} ) {
+
+				if ( ! bikeRoot || ! camera || ! controls ) return;
+
+				const box = new THREE.Box3();
+				const clip = bikeAnimations[ 0 ];
+				const action = mixer && clip ? mixer.existingAction( clip ) || mixer.clipAction( clip ) : null;
+				const wasPaused = action ? action.paused : false;
+				const prevTime = action ? action.time : 0;
+				const prevEnabled = action ? action.enabled : true;
+
+				if ( action && clip && clip.duration > 0 ) {
+
+					action.enabled = true;
+					action.paused = true;
+					const samples = 16;
+					for ( let i = 0; i <= samples; i ++ ) {
+
+						action.time = ( i / samples ) * clip.duration;
+						mixer.update( 0 );
+						bikeRoot.updateWorldMatrix( true, true );
+						box.expandByObject( bikeRoot );
+
+					}
+					action.time = prevTime;
+					action.paused = wasPaused;
+					action.enabled = prevEnabled;
+					mixer.update( 0 );
+
+				} else {
+
+					bikeRoot.updateWorldMatrix( true, true );
+					box.setFromObject( bikeRoot );
+
+				}
+
+				if ( box.isEmpty() ) return;
+
+				const size = box.getSize( new THREE.Vector3() );
+				const center = box.getCenter( new THREE.Vector3() );
+				controls.target.copy( center );
+
+				// Mobile chrome: top title/status + bottom Customize button.
+				const shortSide = Math.min( window.innerWidth, window.innerHeight );
+				const isMobile = shortSide < 700;
+				camera.fov = isMobile ? 42 : 36;
+				camera.aspect = window.innerWidth / window.innerHeight;
+
+				const padding = 1.22;
+				const usableHeight = isMobile ? 0.62 : 0.78; // fraction of screen for the bike
+				const usableWidth = isMobile ? 0.88 : 0.92;
+
+				const vFov = THREE.MathUtils.degToRad( camera.fov );
+				const fitH = ( ( size.y * padding ) / 2 ) / Math.tan( vFov / 2 ) / usableHeight;
+				const fitW = ( ( size.x * padding ) / 2 ) / ( Math.tan( vFov / 2 ) * camera.aspect ) / usableWidth;
+				const fitD = ( size.z * padding ) * 1.15;
+				const dist = Math.max( fitH, fitW, fitD, 2.5 );
+
+				let dir;
+				if ( keepOrbitAngle ) {
+
+					dir = camera.position.clone().sub( controls.target );
+					if ( dir.lengthSq() < 1e-6 ) dir.set( - 0.55, 0.3, 0.78 );
+					dir.normalize();
+
+				} else {
+
+					dir = new THREE.Vector3( - 0.55, 0.3, 0.78 ).normalize();
+
+				}
+
+				camera.position.copy( center ).addScaledVector( dir, dist );
+				// Small near plane so close-up zoom doesn't clip spokes/rims.
+				camera.near = 0.02;
+				camera.far = dist * 40;
+				camera.updateProjectionMatrix();
+
+				// Wide zoom range: pinch/close for part detail, pull back for full bike.
+				controls.minDistance = Math.max( dist * 0.05, 0.1 );
+				controls.maxDistance = dist * 6;
+				controls.zoomSpeed = 1.35;
+				controls.update();
+
+			}
+
+			function animate() {
+
+				timer.update();
+				const delta = timer.getDelta();
+				if ( mixer ) mixer.update( delta );
+				controls.update();
+				renderer.render( scene, camera );
+				partPreview?.render( delta );
+				if ( els.inspectPopup.classList.contains( 'open' ) ) inspectPreview?.render( delta );
+
+			}
+
+			class PartPreview {
+
+				constructor( mainRenderer, canvas, environment = null ) {
+
+					this.mainRenderer = mainRenderer;
+					this.canvas = canvas;
+					this.ctx = canvas.getContext( '2d', { alpha: false } );
+					this.scene = new THREE.Scene();
+					this.scene.background = new THREE.Color( 0xe8e9ef );
+					// Same IBL as main bike — without this, metal/carbon GLB mats render black.
+					if ( environment ) this.scene.environment = environment;
+					this.camera = new THREE.PerspectiveCamera( 28, 1, 0.01, 100 );
+					this.root = new THREE.Group();
+					this.scene.add( this.root );
+					this.spin = 0;
+					this.active = false;
+					this.rt = null;
+					this.pixelBuffer = null;
+					this.imageData = null;
+					this.viewW = 2;
+					this.viewH = 2;
+
+					const hemi = new THREE.HemisphereLight( 0xffffff, 0xd0d4da, 1.55 );
+					const key = new THREE.DirectionalLight( 0xffffff, 2.1 );
+					key.position.set( 2.2, 3.2, 2.4 );
+					const fill = new THREE.DirectionalLight( 0xffffff, 0.95 );
+					fill.position.set( - 2.4, 1.2, - 1.4 );
+					const rim = new THREE.DirectionalLight( 0xffffff, 0.7 );
+					rim.position.set( 0.2, 1.8, - 2.6 );
+					this.scene.add( hemi, key, fill, rim );
+					this.resize();
+
+				}
+
+				prepMaterial( mat ) {
+
+					if ( ! mat ) return mat;
+					const c = mat.clone();
+					c.name = mat.name;
+					// Keep maps/textures; ensure IBL actually affects PBR mats.
+					if ( 'envMapIntensity' in c ) c.envMapIntensity = Math.max( c.envMapIntensity || 0, 1.0 );
+					if ( 'metalness' in c && c.metalness > 0.92 ) c.metalness = 0.85;
+					return c;
+
+				}
+
+				resize() {
+
+					const cssW = Math.max( 2, this.canvas.clientWidth || 320 );
+					const cssH = Math.max( 2, this.canvas.clientHeight || 200 );
+					const pr = Math.min( window.devicePixelRatio || 1, 2 );
+					const w = Math.max( 2, Math.floor( cssW * pr ) );
+					const h = Math.max( 2, Math.floor( cssH * pr ) );
+					this.canvas.width = w;
+					this.canvas.height = h;
+					this.viewW = w;
+					this.viewH = h;
+
+					if ( this.rt ) this.rt.dispose();
+					this.rt = new THREE.WebGLRenderTarget( w, h, {
+						format: THREE.RGBAFormat,
+						type: THREE.UnsignedByteType,
+						depthBuffer: true,
+						stencilBuffer: false,
+					} );
+					this.pixelBuffer = new Uint8Array( w * h * 4 );
+					this.imageData = this.ctx.createImageData( w, h );
+					this.camera.aspect = cssW / cssH;
+					this.camera.updateProjectionMatrix();
+
+				}
+
+				clear() {
+
+					while ( this.root.children.length ) {
+
+						this.root.remove( this.root.children[ 0 ] );
+
+					}
+
+				}
+
+				findNode( sourceRoot, nodeName ) {
+
+					if ( ! nodeName ) return null;
+					let found = null;
+					sourceRoot.traverse( ( obj ) => {
+
+						if ( found || ! obj.name ) return;
+						if ( obj.name === nodeName || obj.name.indexOf( nodeName ) === 0 ) found = obj;
+
+					} );
+					return found;
+
+				}
+
+				extractMeshes( scope, materialNames ) {
+
+					const allow = new Set( materialNames || [] );
+					const meshes = [];
+					scope.updateWorldMatrix( true, true );
+					scope.traverse( ( obj ) => {
+
+						if ( ! obj.isMesh ) return;
+						const mats = Array.isArray( obj.material ) ? obj.material : [ obj.material ];
+						const hit = ! allow.size || mats.some( ( m ) => m && allow.has( m.name ) );
+						if ( ! hit ) return;
+
+						const g = obj.clone( false );
+						if ( Array.isArray( obj.material ) ) {
+
+							g.material = obj.material.map( ( m ) => this.prepMaterial( m ) );
+
+						} else {
+
+							g.material = this.prepMaterial( obj.material );
+
+						}
+
+						obj.updateWorldMatrix( true, false );
+						g.matrix.copy( obj.matrixWorld );
+						g.matrix.decompose( g.position, g.quaternion, g.scale );
+						g.matrixAutoUpdate = true;
+						// Avoid frustum / lighting quirks on isolated clones.
+						g.frustumCulled = false;
+						meshes.push( g );
+
+					} );
+					return meshes;
+
+				}
+
+				recenter( group ) {
+
+					group.updateWorldMatrix( true, true );
+					const box = new THREE.Box3().setFromObject( group );
+					if ( box.isEmpty() ) return new THREE.Vector3( 1, 1, 1 );
+					const center = box.getCenter( new THREE.Vector3() );
+					const size = box.getSize( new THREE.Vector3() );
+					group.position.x -= center.x;
+					group.position.y -= center.y;
+					group.position.z -= center.z;
+					return size;
+
+				}
+
+				// Rotate rim so its face points at the camera (catalog / product front view).
+				faceOnToCamera( group ) {
+
+					group.rotation.set( 0, 0, 0 );
+					group.updateWorldMatrix( true, true );
+					let size = this.recenter( group );
+					group.updateWorldMatrix( true, true );
+					size = new THREE.Box3().setFromObject( group ).getSize( new THREE.Vector3() );
+
+					// Thinnest AABB axis ~= wheel axle. Put that on Z so face fills XY.
+					if ( size.x <= size.y && size.x <= size.z ) group.rotation.y = Math.PI / 2;
+					else if ( size.y <= size.x && size.y <= size.z ) group.rotation.x = Math.PI / 2;
+
+					group.updateWorldMatrix( true, true );
+					this.recenter( group );
+
+					// Normalize diameter so both rims match in the catalog grid.
+					size = new THREE.Box3().setFromObject( group ).getSize( new THREE.Vector3() );
+					const diameter = Math.max( size.x, size.y, 0.001 );
+					const target = 1.0;
+					group.scale.multiplyScalar( target / diameter );
+					group.updateWorldMatrix( true, true );
+					this.recenter( group );
+
+				}
+
+				clonePart( sourceRoot, { nodeNames = [], materialNames = [], sideBySide = false } = {} ) {
+
+					this.clear();
+					const holder = new THREE.Group();
+					const names = ( nodeNames && nodeNames.length ) ? nodeNames : [ null ];
+					const rimGroups = [];
+
+					for ( const name of names ) {
+
+						const scope = name ? this.findNode( sourceRoot, name ) : sourceRoot;
+						if ( ! scope ) continue;
+						const meshes = this.extractMeshes( scope, materialNames );
+						if ( ! meshes.length ) continue;
+						const g = new THREE.Group();
+						for ( const mesh of meshes ) g.add( mesh );
+						if ( sideBySide ) this.faceOnToCamera( g );
+						else this.recenter( g );
+						rimGroups.push( g );
+
+					}
+
+					if ( ! rimGroups.length ) {
+
+						const meshes = this.extractMeshes( sourceRoot, materialNames );
+						const g = new THREE.Group();
+						for ( const mesh of meshes ) g.add( mesh );
+						if ( sideBySide ) this.faceOnToCamera( g );
+						else this.recenter( g );
+						rimGroups.push( g );
+
+					}
+
+					if ( sideBySide && rimGroups.length >= 2 ) {
+
+						const spacing = 1.15; // normalized diameters ~1.0 each
+						rimGroups[ 0 ].position.x = - spacing * 0.5;
+						rimGroups[ 1 ].position.x = spacing * 0.5;
+						holder.add( rimGroups[ 0 ], rimGroups[ 1 ] );
+
+					} else {
+
+						for ( const g of rimGroups ) holder.add( g );
+
+					}
+
+					this.root.add( holder );
+					this.fitCatalog( holder, sideBySide );
+					return holder;
+
+				}
+
+				fitCatalog( object, productFront ) {
+
+					object.updateWorldMatrix( true, true );
+					const box = new THREE.Box3().setFromObject( object );
+					if ( box.isEmpty() ) return;
+					const size = box.getSize( new THREE.Vector3() );
+					const center = box.getCenter( new THREE.Vector3() );
+					object.position.x -= center.x;
+					object.position.y -= center.y;
+					object.position.z -= center.z;
+
+					const maxSize = Math.max( size.x, size.y, size.z ) || 1;
+
+					if ( productFront ) {
+
+						// Straight-on product shot — rim faces the user.
+						const dist = maxSize * 1.35;
+						this.camera.position.set( 0, 0, dist );
+						this.camera.near = Math.max( dist / 200, 0.01 );
+						this.camera.far = dist * 40;
+						this.camera.lookAt( 0, 0, 0 );
+
+					} else {
+
+						const dist = maxSize * 1.7;
+						this.camera.position.set( dist * 0.2, dist * 0.25, dist );
+						this.camera.near = Math.max( dist / 200, 0.01 );
+						this.camera.far = dist * 30;
+						this.camera.lookAt( 0, 0, 0 );
+
+					}
+
+					this.camera.updateProjectionMatrix();
+
+				}
+
+				show( sourceRoot, options ) {
+
+					const opts = Array.isArray( options )
+						? { materialNames: options }
+						: ( options || {} );
+					this.resize();
+					this.clonePart( sourceRoot, opts );
+					this.active = true;
+					this.spin = 0;
+					this._pendingHex = null;
+
+				}
+
+				/** Clone a clicked assembly for the inspect popup — full part, catalog 3/4 view. */
+				showAssembly( sourceObject ) {
+
+					this.resize();
+					this.clear();
+					if ( ! sourceObject ) {
+
+						this.active = false;
+						return;
+
+					}
+
+					const meshes = this.extractMeshes( sourceObject, [] );
+					if ( ! meshes.length ) {
+
+						this.active = false;
+						return;
+
+					}
+
+					const g = new THREE.Group();
+					for ( const mesh of meshes ) g.add( mesh );
+					this.recenter( g );
+
+					let size = new THREE.Box3().setFromObject( g ).getSize( new THREE.Vector3() );
+					const thin = Math.min( size.x, size.y, size.z );
+					const wide = Math.max( size.x, size.y, size.z );
+					const isWheelLike = thin > 0 && wide / thin > 3.5;
+
+					// Catalog angle: poora part dikhe + depth bhi (flat circle nahi).
+					g.rotation.set( 0, 0, 0 );
+					if ( isWheelLike ) {
+
+						if ( size.z <= size.x && size.z <= size.y ) g.rotation.y = Math.PI / 2;
+						else if ( size.y <= size.x && size.y <= size.z ) g.rotation.x = Math.PI / 2;
+						g.rotation.y += 0.65;
+						g.rotation.x += 0.28;
+
+					} else {
+
+						g.rotation.y = 0.55;
+						g.rotation.x = 0.22;
+
+					}
+
+					g.updateWorldMatrix( true, true );
+					this.recenter( g );
+
+					size = new THREE.Box3().setFromObject( g ).getSize( new THREE.Vector3() );
+					const maxDim = Math.max( size.x, size.y, size.z, 0.001 );
+					g.scale.multiplyScalar( 1 / maxDim );
+					g.updateWorldMatrix( true, true );
+					this.recenter( g );
+
+					const holder = new THREE.Group();
+					holder.add( g );
+					this.root.add( holder );
+
+					// Fit FULL bounds with padding so kuch cut na ho.
+					holder.updateWorldMatrix( true, true );
+					size = new THREE.Box3().setFromObject( holder ).getSize( new THREE.Vector3() );
+					const fit = Math.max( size.x / Math.max( this.camera.aspect, 0.5 ), size.y, size.z * 0.35 );
+					const vFov = THREE.MathUtils.degToRad( this.camera.fov );
+					const dist = ( ( fit * 0.5 ) / Math.tan( vFov / 2 ) ) * 1.45;
+					this.camera.fov = 32;
+					this.camera.position.set( 0, fit * 0.04, dist );
+					this.camera.near = 0.01;
+					this.camera.far = Math.max( dist * 50, 20 );
+					this.camera.lookAt( 0, 0, 0 );
+					this.camera.updateProjectionMatrix();
+					this.active = true;
+					this.spin = 0;
+
+				}
+
+				syncColors( materialNames, hex ) {
+
+					// hex null → leave textures (Original). Else tint named mats, or all if list empty.
+					this._pendingHex = hex;
+					if ( ! hex ) return;
+					const color = new THREE.Color( hex );
+					const allow = new Set( materialNames || [] );
+					this.root.traverse( ( obj ) => {
+
+						if ( ! obj.isMesh ) return;
+						const mats = Array.isArray( obj.material ) ? obj.material : [ obj.material ];
+						for ( const mat of mats ) {
+
+							if ( ! mat ) continue;
+							if ( allow.size && ! allow.has( mat.name ) ) continue;
+							mat.color.copy( color );
+							if ( 'metalness' in mat && mat.name === 'FelgeInnen' ) mat.metalness = 0.72;
+							if ( 'roughness' in mat && mat.name === 'FelgeInnen' ) mat.roughness = 0.28;
+							mat.needsUpdate = true;
+
+						}
+
+					} );
+
+				}
+
+				stop() {
+
+					this.active = false;
+
+				}
+
+				dispose() {
+
+					this.stop();
+					this.clear();
+					if ( this.rt ) {
+
+						this.rt.dispose();
+						this.rt = null;
+
+					}
+
+				}
+
+				render( delta = 0.016 ) {
+
+					if ( ! this.active || ! this.rt ) return;
+
+					// Slow catalog turn so tread / shape poora samajh aaye.
+					this.spin += delta * 0.35;
+					const holder = this.root.children[ 0 ];
+					if ( holder ) holder.rotation.y = this.spin;
+
+					const prevTarget = this.mainRenderer.getRenderTarget();
+					const prevAutoClear = this.mainRenderer.autoClear;
+					const prevClear = this.mainRenderer.getClearColor( new THREE.Color() );
+					const prevAlpha = this.mainRenderer.getClearAlpha();
+					this.mainRenderer.autoClear = true;
+					this.mainRenderer.setClearColor( 0xe8e9ef, 1 );
+					this.mainRenderer.setRenderTarget( this.rt );
+					this.mainRenderer.clear();
+					this.mainRenderer.render( this.scene, this.camera );
+					this.mainRenderer.readRenderTargetPixels( this.rt, 0, 0, this.viewW, this.viewH, this.pixelBuffer );
+					this.mainRenderer.setRenderTarget( prevTarget );
+					this.mainRenderer.setClearColor( prevClear, prevAlpha );
+					this.mainRenderer.autoClear = prevAutoClear;
+
+					// WebGL is bottom-up; canvas 2D is top-down.
+					const src = this.pixelBuffer;
+					const dst = this.imageData.data;
+					const w = this.viewW;
+					const h = this.viewH;
+					const row = w * 4;
+					for ( let y = 0; y < h; y ++ ) {
+
+						const s = ( h - 1 - y ) * row;
+						const d = y * row;
+						dst.set( src.subarray( s, s + row ), d );
+
+					}
+					this.ctx.putImageData( this.imageData, 0, 0 );
+
+				}
+
+			}
+
+		</script>
+	</body>
+</html>
